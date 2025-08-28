@@ -159,10 +159,10 @@ impl ProfileGenerator {
   pub fn finish(&mut self) -> Result<String> {
     let mfcc_entries: Vec<MfccEntry> = self
       .entries
-      .iter()
+      .drain()
       .map(|(name, data_list)| MfccEntry {
-        name: name.clone(),
-        mfcc_calibration_data_list: data_list.clone(),
+        name,
+        mfcc_calibration_data_list: data_list,
       })
       .collect();
 
@@ -177,11 +177,7 @@ impl ProfileGenerator {
       mfccs: mfcc_entries,
     };
 
-    let result = serde_json::to_string_pretty(&output)
-      .map_err(|e| Error::new(Status::GenericFailure, format!("Serialization error: {e}")));
-
-    self.entries.clear();
-
-    result
+    serde_json::to_string_pretty(&output)
+      .map_err(|e| Error::new(Status::GenericFailure, format!("Serialization error: {e}")))
   }
 }
