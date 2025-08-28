@@ -156,7 +156,7 @@ impl ProfileGenerator {
   }
 
   #[napi]
-  pub fn finish(&self) -> Result<String> {
+  pub fn finish(&mut self) -> Result<String> {
     let mfcc_entries: Vec<MfccEntry> = self
       .entries
       .iter()
@@ -177,11 +177,11 @@ impl ProfileGenerator {
       mfccs: mfcc_entries,
     };
 
-    serde_json::to_string_pretty(&output).map_err(|e| {
-      Error::new(
-        Status::GenericFailure,
-        format!("Serialization error: {}", e),
-      )
-    })
+    let result = serde_json::to_string_pretty(&output)
+      .map_err(|e| Error::new(Status::GenericFailure, format!("Serialization error: {e}")));
+
+    self.entries.clear();
+
+    result
   }
 }
