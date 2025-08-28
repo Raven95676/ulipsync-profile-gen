@@ -85,9 +85,8 @@ pub fn downsample(input: &[f32], sample_rate: u32, target_sample_rate: u32) -> V
 }
 
 pub fn pre_emphasis(data: &mut [f32], coeff: f32) {
-  let tmp = data.to_vec();
-  for i in 1..data.len() {
-    data[i] = tmp[i] - coeff * tmp[i - 1];
+  for i in (1..data.len()).rev() {
+    data[i] -= coeff * data[i - 1]
   }
 }
 
