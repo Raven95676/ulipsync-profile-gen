@@ -4,6 +4,7 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 mod algorithm;
 mod mfcc;
@@ -110,7 +111,7 @@ impl ProfileGenerator {
     let total = audio_data.len();
 
     thread_local! {
-      static MFCC_POOL: std::cell::RefCell<mfcc::MfccBufferPool> = std::cell::RefCell::new(mfcc::MfccBufferPool::new());
+      static MFCC_POOL: RefCell<mfcc::MfccBufferPool> = RefCell::new(mfcc::MfccBufferPool::new());
     }
 
     let mut mfcc_output: Vec<f32> = Vec::new();

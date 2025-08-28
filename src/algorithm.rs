@@ -1,5 +1,6 @@
 use rustfft::{num_complex::Complex32, FftPlanner};
 use std::f32::consts::PI;
+use std::cell::RefCell;
 
 #[inline]
 fn get_max_value(slice: &[f32]) -> f32 {
@@ -102,15 +103,20 @@ pub fn hamming(data: &mut [f32]) {
 // 理论上没问题，偷个懒（
 pub fn fft(data: &[f32], complex: &mut Vec<Complex32>, out: &mut Vec<f32>) {
   let n = data.len();
+  thread_local! {
+    static FFT_PLANNER: RefCell<FftPlanner<f32>> = RefCell::new(FftPlanner::new());
+  }
   complex.clear();
   complex.reserve(n.saturating_sub(complex.capacity()));
   for &x in data {
     complex.push(Complex32::new(x, 0.0));
   }
-  let mut planner = FftPlanner::<f32>::new();
   if n > 0 {
-    let fft = planner.plan_fft_forward(n);
-    fft.process(complex);
+    FFT_PLANNER.with(|planner_ref| {
+      let mut planner = planner_ref.borrow_mut();
+      let fft = planner.plan_fft_forward(n);
+      fft.process(complex);
+    });
   }
   out.clear();
   out.reserve(n.saturating_sub(out.capacity()));
