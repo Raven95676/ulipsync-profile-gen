@@ -1,4 +1,5 @@
 use crate::algorithm;
+use crate::MFCC_SIZE;
 
 pub fn extract_mfcc(
   mut input: Vec<f32>,
@@ -26,7 +27,12 @@ pub fn extract_mfcc(
   algorithm::power_to_db(&mut mel_spectrum);
   let mel_cepstrum = algorithm::dct(&mel_spectrum);
 
-  let mfcc: Vec<f32> = mel_cepstrum.iter().skip(1).copied().collect();
+  let mfcc: Vec<f32> = mel_cepstrum
+    .iter()
+    .skip(1)
+    .take(MFCC_SIZE)
+    .copied()
+    .collect();
 
   mfcc
 }
