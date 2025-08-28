@@ -2,7 +2,7 @@
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 
 mod algorithm;
@@ -10,19 +10,19 @@ mod mfcc;
 
 const MFCC_SIZE: usize = 12;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize)]
 struct MfccCalibrationData {
   array: Vec<f32>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize)]
 struct MfccEntry {
   name: String,
   #[serde(rename = "mfccCalibrationDataList")]
   mfcc_calibration_data_list: Vec<MfccCalibrationData>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct OutputJson {
   #[serde(rename = "mfccNum")]
   mfcc_num: usize,
