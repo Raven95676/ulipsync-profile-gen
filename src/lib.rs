@@ -174,7 +174,7 @@ impl ProfileGenerator {
       mfccs: mfcc_entries,
     };
 
-    serde_json::to_string_pretty(&output)
+    serde_json::to_string(&output)
       .map_err(|e| Error::new(Status::GenericFailure, format!("Serialization error: {e}")))
   }
 }
