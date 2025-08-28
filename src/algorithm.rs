@@ -53,25 +53,26 @@ pub fn low_pass_filter(data: &mut [f32], sample_rate: f32, cutoff: f32, range: f
   low_pass_filter_kernel(data, cutoff_n, &tmp, &mut b);
 }
 
-pub fn downsample(input: &[f32], sample_rate: u32, target_sample_rate: u32) -> Vec<f32> {
+pub fn downsample(input: &[f32], sample_rate: u32, target_sample_rate: u32, out: &mut Vec<f32>) {
+  out.clear();
   if sample_rate <= target_sample_rate {
-    return input.to_vec();
+    out.extend_from_slice(input);
+    return;
   }
 
   if sample_rate % target_sample_rate == 0 {
     let skip = (sample_rate / target_sample_rate) as usize;
     let out_len = input.len() / skip;
-    let mut out = Vec::with_capacity(out_len);
+    out.reserve(out_len.saturating_sub(out.capacity()));
     for i in 0..out_len {
       out.push(input[i * skip]);
     }
-    return out;
+    return;
   }
 
   let df = (sample_rate as f32) / (target_sample_rate as f32);
   let out_len = (input.len() as f32 / df).round_ties_even() as usize;
-
-  let mut out = Vec::with_capacity(out_len);
+  out.reserve(out_len.saturating_sub(out.capacity()));
   for j in 0..out_len {
     let f_index = df * (j as f32);
     let i0 = f_index.floor() as usize;
@@ -81,7 +82,6 @@ pub fn downsample(input: &[f32], sample_rate: u32, target_sample_rate: u32) -> V
     let y = input[i0] * (1.0 - t) + input[i1] * t;
     out.push(y);
   }
-  out
 }
 
 pub fn pre_emphasis(data: &mut [f32], coeff: f32) {
@@ -100,16 +100,21 @@ pub fn hamming(data: &mut [f32]) {
 }
 
 // 理论上没问题，偷个懒（
-pub fn fft(data: &[f32]) -> Vec<f32> {
+pub fn fft(data: &[f32], complex: &mut Vec<Complex32>, out: &mut Vec<f32>) {
   let n = data.len();
-  if n == 0 {
-    return Vec::new();
+  complex.clear();
+  complex.reserve(n.saturating_sub(complex.capacity()));
+  for &x in data {
+    complex.push(Complex32::new(x, 0.0));
   }
-  let mut buffer: Vec<Complex32> = data.iter().map(|&x| Complex32::new(x, 0.0)).collect();
   let mut planner = FftPlanner::<f32>::new();
-  let fft = planner.plan_fft_forward(n);
-  fft.process(&mut buffer);
-  buffer.iter().map(|c| c.norm()).collect()
+  if n > 0 {
+    let fft = planner.plan_fft_forward(n);
+    fft.process(complex);
+  }
+  out.clear();
+  out.reserve(n.saturating_sub(out.capacity()));
+  out.extend(complex.iter().map(|c| c.norm()));
 }
 
 #[inline]
@@ -131,12 +136,11 @@ pub fn to_hz(mel: f32, slaney: bool) -> f32 {
   700.0 * ((mel / a).exp() - 1.0)
 }
 
-pub fn dct(spectrum: &[f32]) -> Vec<f32> {
+pub fn dct(spectrum: &[f32], out: &mut [f32]) {
   let len = spectrum.len();
-  let mut cepstrum = vec![0.0; len];
   let a = PI / len as f32;
 
-  for (i, cep_val) in cepstrum.iter_mut().enumerate() {
+  for (i, cep_val) in out.iter_mut().enumerate().take(len) {
     let mut sum = 0.0;
     for (j, spec_val) in spectrum.iter().enumerate() {
       let ang = (j as f32 + 0.5) * i as f32 * a;
@@ -144,12 +148,9 @@ pub fn dct(spectrum: &[f32]) -> Vec<f32> {
     }
     *cep_val = sum;
   }
-
-  cepstrum
 }
 
-pub fn mel_filter_bank(spectrum: &[f32], sample_rate: f32, mel_div: usize) -> Vec<f32> {
-  let mut mel_spectrum = vec![0.0; mel_div];
+pub fn mel_filter_bank(spectrum: &[f32], sample_rate: f32, mel_div: usize, out: &mut [f32]) {
   let len = spectrum.len();
 
   let f_max = sample_rate / 2.0;
@@ -158,7 +159,7 @@ pub fn mel_filter_bank(spectrum: &[f32], sample_rate: f32, mel_div: usize) -> Ve
   let df = f_max / n_max as f32;
   let d_mel = mel_max / (mel_div + 1) as f32;
 
-  for (n, mel_val) in mel_spectrum.iter_mut().enumerate() {
+  for (n, out_val) in out.iter_mut().enumerate().take(mel_div) {
     let mel_begin = d_mel * n as f32;
     let mel_center = d_mel * (n + 1) as f32;
     let mel_end = d_mel * (n + 2) as f32;
@@ -187,8 +188,6 @@ pub fn mel_filter_bank(spectrum: &[f32], sample_rate: f32, mel_div: usize) -> Ve
       a /= (f_end - f_begin) * 0.5;
       sum += a * *spec_val;
     }
-    *mel_val = sum;
+    *out_val = sum;
   }
-
-  mel_spectrum
 }

@@ -107,49 +107,46 @@ impl ProfileGenerator {
     }
 
     let audio_data: Vec<f32> = audio.to_vec();
+    let total = audio_data.len();
 
-    let mut chunk_list: Vec<Vec<f32>> = Vec::new();
-    if audio_data.len() == self.sample_count {
-      chunk_list.push(audio_data.clone());
-    } else if audio_data.len() > self.sample_count {
-      let mut start = 0usize;
-      let total = audio_data.len();
-      while start < total {
-        let end = (start + self.sample_count).min(total);
-        let slice_len = end - start;
-        if slice_len == self.sample_count {
-          let mut slice_vec = Vec::with_capacity(slice_len);
-          slice_vec.extend(audio_data[start..end].iter().copied());
-          chunk_list.push(slice_vec);
-        }
-        start += self.sample_count;
-      }
+    thread_local! {
+      static MFCC_POOL: std::cell::RefCell<mfcc::MfccBufferPool> = std::cell::RefCell::new(mfcc::MfccBufferPool::new());
     }
 
-    for chunk in chunk_list {
-      let mfcc_features = mfcc::extract_mfcc(
-        chunk,
-        input_sample_rate,
-        self.target_sample_rate,
-        self.mel_filter_bank_channels,
-      );
+    let mut mfcc_output: Vec<f32> = Vec::new();
+    let mut frame_buf: Vec<f32> = vec![0.0; self.sample_count];
 
-      if mfcc_features.iter().any(|&value| !value.is_finite()) {
+    let entry_list = self.entries.entry(phoneme_name).or_default();
+
+    let mut start = 0usize;
+    while start + self.sample_count <= total {
+      let end = start + self.sample_count;
+      frame_buf.copy_from_slice(&audio_data[start..end]);
+      MFCC_POOL.with(|pool_ref| {
+        let mut pool = pool_ref.borrow_mut();
+        mfcc::extract_mfcc(
+          &mut frame_buf,
+          input_sample_rate,
+          self.target_sample_rate,
+          self.mel_filter_bank_channels,
+          &mut pool,
+          &mut mfcc_output,
+        );
+      });
+
+      if mfcc_output.iter().any(|&v| !v.is_finite()) {
+        start += self.sample_count;
         continue;
       }
-
-      let calibration_data = MfccCalibrationData {
-        array: mfcc_features,
-      };
-
-      let entry_list = self.entries.entry(phoneme_name.clone()).or_default();
-
+      let result_data = std::mem::take(&mut mfcc_output);
+      let calibration_data = MfccCalibrationData { array: result_data };
       entry_list.push(calibration_data);
-
       if entry_list.len() > self.mfcc_data_count {
         let overflow = entry_list.len() - self.mfcc_data_count;
         entry_list.drain(0..overflow);
       }
+
+      start += self.sample_count;
     }
 
     Ok(())
