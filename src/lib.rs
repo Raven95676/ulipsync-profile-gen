@@ -3,8 +3,8 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 mod algorithm;
 mod mfcc;

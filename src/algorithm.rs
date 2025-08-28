@@ -1,6 +1,6 @@
 use rustfft::{num_complex::Complex32, FftPlanner};
-use std::f32::consts::PI;
 use std::cell::RefCell;
+use std::f32::consts::PI;
 
 #[inline]
 fn get_max_value(slice: &[f32]) -> f32 {
