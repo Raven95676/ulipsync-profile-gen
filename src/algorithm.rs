@@ -61,7 +61,7 @@ pub fn downsample(input: &[f32], sample_rate: u32, target_sample_rate: u32, out:
     return;
   }
 
-  if sample_rate % target_sample_rate == 0 {
+  if sample_rate.is_multiple_of(target_sample_rate) {
     let skip = (sample_rate / target_sample_rate) as usize;
     let out_len = input.len() / skip;
     out.reserve(out_len.saturating_sub(out.capacity()));
